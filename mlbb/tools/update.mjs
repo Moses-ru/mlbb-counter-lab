@@ -5,6 +5,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { itemNameRu, statsRu, passivesRu } from './items-ru.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.resolve(HERE, '..');
@@ -132,9 +133,10 @@ const ITEM_TYPE = { Attack: 'phys', Magic: 'magic', Defense: 'def', Movement: 'b
 const items = {};
 for (const r of equip) {
   const d = r.data;
+  const st = statsRu(d.equiptips);
   items[d.equipid] = {
-    name: d.equipname, cat: ITEM_TYPE[d.equiptypename] || 'def', type: d.equiptypename,
-    desc: String(d.equiptips || '').replace(/<br\s*\/?>/gi, ', ').replace(/<[^>]+>/g, '').replace(/,\s*$/, '').trim(),
+    name: itemNameRu(d.equipname), en: d.equipname, cat: ITEM_TYPE[d.equiptypename] || 'def', type: d.equiptypename,
+    stats: st, passives: passivesRu(d), desc: st.join(', '),
     icon: d.equipicon
   };
 }
@@ -218,7 +220,7 @@ const COUNTER_NAMES = ['Sea Halberd', 'Glowing Wand', 'Dominance Ice', 'Wind of 
   "Athena's Shield", 'Antique Cuirass', 'Blade Armor', 'Radiant Armor', 'Malefic Roar', 'Divine Glaive', 'Tough Boots', 'Warrior Boots', 'Immortality', 'Swift Boots', 'Arcane Boots', 'Magic Shoes', 'Rapid Boots', 'Demon Shoes', 'Blade of Despair', 'Holy Crystal', 'Brute Force Breastplate', 'Guardian Helmet', 'Hunter Strike'];
 const counterItems = {};
 for (const n of COUNTER_NAMES) {
-  const id = Object.keys(items).find(k => items[k].name.toLowerCase() === n.toLowerCase());
+  const id = Object.keys(items).find(k => items[k].en.toLowerCase() === n.toLowerCase());
   if (id) counterItems[n] = Number(id); else console.warn('   нет предмета:', n);
 }
 

@@ -243,6 +243,19 @@ tbody tr:last-child td{border-bottom:0}
 .foot .wrap{padding-block:18px;display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
 .foot a{color:var(--muted);text-decoration:underline}
 .loading{padding:80px 0;text-align:center;color:var(--muted)}
+/* item card (tooltip + tap sheet) */
+.tip-pop{max-width:300px;width:300px}
+.ic-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ic-head .ico{width:40px;height:40px;border-radius:9px;font-size:11px}
+.ic-head b{display:block;font-size:14px}
+.ic-head small{display:block;color:var(--dim);font-size:11px}
+.ic-stats{margin:0 0 8px;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;color:var(--win);font-family:var(--mono);font-size:12px}
+.ic-p{margin:0 0 6px;color:var(--muted);font-size:12.5px;line-height:1.45}
+.ic-p b{color:var(--gold)}
+.item-sheet{width:min(440px,100%)}
+.item-sheet .ic-head .ico{width:56px;height:56px}
+.item-sheet .ic-p{font-size:13.5px}
+[data-item]{cursor:pointer}
 /* player profile */
 .login{max-width:560px}
 .lform{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
@@ -324,6 +337,8 @@ a.rec:hover{border-color:var(--line)}
 @media (max-width:640px){
   .nav{display:none}
   .top .wrap{justify-content:space-between}
+  .seg{flex-wrap:wrap;overflow:visible}
+  .seg button{padding:6px 10px;font-size:13px}
   .live .lbl{display:inline}
   .tabbar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--surface);border-top:1px solid var(--line);
     padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
@@ -402,13 +417,6 @@ a.rec:hover{border-color:var(--line)}
   <a href="#heroes" data-r="heroes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.8 2.6 2.6 3 5.2"/></svg>Герои</a>
   <a href="#me" data-r="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.2 4.2-6.5 8-6.5s7 2.3 8 6.5"/></svg>Профиль</a>
 </nav>
-
-<footer class="foot">
-  <div class="wrap">
-    <span>Фан-проект для друзей. Не связан с Moonton. Mobile Legends: Bang Bang и все игровые изображения принадлежат Moonton.</span>
-    <span id="foot-src"></span>
-  </div>
-</footer>
 
 <script>
 (() => {
@@ -546,10 +554,11 @@ const WHY = {
 function threats(me, en){
   const t = prof(en), F = family(me, en), out = [], E = en.name;
   const add = (key, name, why) => { const id = CI(name); if (id) out.push({ key, id, why }); };
-  if (t.heal >= 2) add('heal', F.antiHeal, `${E} много лечится. ${F.antiHeal} режет лечение, бери его рано.`);
-  if (en.dmg === 'phys' && (t.burst >= 2 || t.dps >= 3)) add('phys', F.vsPhys, `${E} наносит много физического урона. ${F.vsPhys}: ${WHY[F.vsPhys] || 'защита от физ. урона'}.`);
-  if (en.dmg === 'magic' && t.burst >= 2) add('magic', F.vsMagic, `${E} бьёт магическим комбо. ${F.vsMagic}: ${WHY[F.vsMagic] || 'защита от магии'}.`);
-  if (en.class === 'tank' && F.vsTank) add('tank', F.vsTank, `${E} очень плотный. ${F.vsTank} пробивает защиту.`);
+  const N = name => I(CI(name)).name;
+  if (t.heal >= 2) add('heal', F.antiHeal, `${E} много лечится. ${N(F.antiHeal)} режет лечение, бери его рано.`);
+  if (en.dmg === 'phys' && (t.burst >= 2 || t.dps >= 3)) add('phys', F.vsPhys, `${E} наносит много физического урона. ${N(F.vsPhys)}: ${WHY[F.vsPhys] || 'защита от физ. урона'}.`);
+  if (en.dmg === 'magic' && t.burst >= 2) add('magic', F.vsMagic, `${E} бьёт магическим комбо. ${N(F.vsMagic)}: ${WHY[F.vsMagic] || 'защита от магии'}.`);
+  if (en.class === 'tank' && F.vsTank) add('tank', F.vsTank, `${E} очень плотный. ${N(F.vsTank)} пробивает защиту.`);
   return { list: out, cc: t.cc >= 2, p: t };
 }
 function defaultBoots(me, en, cc){
@@ -835,7 +844,9 @@ async function api(path, { method = 'GET', body, token } = {}){
   let j = null; try { j = await r.json(); } catch(e){}
   if (r.status === 401 || r.status === 403){ const err = new Error((j && (j.message || j.msg)) || 'Сессия истекла'); err.auth = true; throw err; }
   if (!r.ok || !j || j.status === 'error' || (typeof j.code === 'number' && j.code !== 0)){
-    throw new Error((j && (j.msg || j.message || (typeof j.details === 'string' ? j.details : ''))) || ('Ошибка ' + r.status));
+    const err = new Error((j && (j.msg || j.message || (typeof j.details === 'string' ? j.details : ''))) || ('Ошибка ' + r.status));
+    err.code = j && j.code;
+    throw err;
   }
   return j.data;
 }
@@ -962,8 +973,8 @@ async function loadMe(){
   try {
     [info, stats, seasons] = await Promise.all([
       api('/user/info?lang=ru', { token:a.jwt }),
-      api('/user/stats?lang=ru', { token:a.jwt }).catch(() => null),
-      api('/user/season?lang=ru', { token:a.jwt }).catch(() => null)
+      api('/user/stats?lang=ru', { token:a.jwt }).catch(e => { P.statsErr = e; return null; }),
+      api('/user/season?lang=ru', { token:a.jwt }).catch(e => { P.seasonErr = e; return null; })
     ]);
   } catch(err){
     if (my !== P.load) return;
@@ -984,6 +995,13 @@ async function loadMe(){
       <div class="me-ranks">${rankBadge(info.rank_level, 'Текущий ранг')}${info.history_rank_level ? rankBadge(info.history_rank_level, 'Лучший ранг') : ''}</div>
       <div class="me-actions"><button class="btn small ghost" data-reload>Обновить</button><button class="btn small ghost" data-logout>Выйти</button></div>
     </div>`;
+  // Moonton answers 10407 ("endpoint offline") for the whole battle report service
+  const off = [P.statsErr, P.seasonErr].find(e => e && e.code === 10407);
+  P.statsErr = P.seasonErr = null;
+  if (off && !stats && !sids.length){
+    body.innerHTML = `<div class="notice-box"><b>История матчей сейчас недоступна.</b> Moonton отключил у себя сервис со статистикой и матчами (ошибка 10407, «сервис отключён»). Профиль и ранг работают. Как только сервис вернут, матчи появятся здесь сами.</div>`;
+    return;
+  }
   body.innerHTML = `
     ${stats ? statsBlock(stats) : ''}
     ${sids.length ? `<div class="filters" style="margin-top:16px"><div class="seg gold" aria-label="Сезон">${sids.map(s => `<button class="${s === P.sid ? 'on' : ''}" data-sid="${s}">Сезон ${s}</button>`).join('')}</div></div>` : ''}
@@ -1025,7 +1043,7 @@ async function loadSeason(my){
   ]);
   if (my !== P.load) return;
   const fl = $('#f-list'); if (!fl) return;
-  if (fr.status === 'rejected'){ if (onAuthError(fr.reason)) return; fl.innerHTML = `<div class="empty">Не удалось загрузить: ${esc(fr.reason.message)}</div>`; return; }
+  if (fr.status === 'rejected'){ if (onAuthError(fr.reason)) return; fl.innerHTML = `<div class="empty">${fr.reason.code === 10407 ? 'Сервис Moonton сейчас отключён (ошибка 10407).' : 'Не удалось загрузить: ' + esc(fr.reason.message)}</div>`; return; }
   const list = (fr.value && fr.value.result) || [];
   fl.innerHTML = list.map(x => {
     const h = HID(x.hid), wr = x.tc ? x.wc / x.tc * 100 : 0;
@@ -1042,7 +1060,7 @@ async function loadMatches(my){
   catch(err){
     if (my !== P.load) return;
     if (onAuthError(err)) return;
-    const l = $('#m-list'); if (l) l.innerHTML = `<div class="empty">Не удалось загрузить матчи: ${esc(err.message)}</div>`;
+    const l = $('#m-list'); if (l) l.innerHTML = `<div class="empty">${err.code === 10407 ? 'Moonton сейчас отключил историю матчей (ошибка 10407). Как только её вернут, матчи появятся здесь.' : 'Не удалось загрузить матчи: ' + esc(err.message)}</div>`;
     return;
   }
   if (my !== P.load) return;
@@ -1222,13 +1240,41 @@ document.addEventListener('pointerover', e => {
   const el = e.target.closest('[data-item]');
   if (!el){ pop.hidden = true; return; }
   const it = I(el.dataset.item);
-  pop.innerHTML = `<b>${esc(it.name)}</b>${esc(it.desc)}`;
+  if (e.pointerType === 'touch') return;
+  pop.innerHTML = itemCard(el.dataset.item, true);
   pop.hidden = false;
   const r = el.getBoundingClientRect();
-  pop.style.left = Math.min(window.innerWidth - 276, Math.max(8, r.left + r.width / 2 - 130)) + 'px';
-  pop.style.top = (r.bottom + 8) + 'px';
+  pop.style.left = Math.min(window.innerWidth - 316, Math.max(8, r.left + r.width / 2 - 150)) + 'px';
+  const below = r.bottom + 8, h = pop.offsetHeight;
+  pop.style.top = (below + h > window.innerHeight - 8 && r.top - h - 8 > 8 ? r.top - h - 8 : below) + 'px';
 });
 window.addEventListener('scroll', () => { pop.hidden = true; }, { passive:true });
+const CAT_RU = { phys:'Атака', magic:'Магия', def:'Защита', boots:'Ботинки' };
+function itemCard(id, short){
+  const it = I(id);
+  const pas = it.passives || [];
+  return `<div class="ic-head">${itemIco(id)}<div><b>${esc(it.name)}</b><small>${esc(CAT_RU[it.cat] || '')}${it.en && it.en !== it.name ? ' · ' + esc(it.en) : ''}</small></div></div>
+    ${(it.stats || []).length ? `<ul class="ic-stats">${it.stats.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : (it.desc ? `<p class="ic-p">${esc(it.desc)}</p>` : '')}
+    ${pas.map(p => `<p class="ic-p">${p.t ? `<b>${esc(p.t)}.</b> ` : ''}${esc(p.d)}</p>`).join('')}
+    ${short && pas.length ? '' : ''}`;
+}
+function openItem(id){
+  pop.hidden = true;
+  const wrap = document.createElement('div');
+  wrap.className = 'modal';
+  wrap.innerHTML = `<div class="sheet item-sheet" role="dialog" aria-modal="true" aria-label="${esc(I(id).name)}"><div class="panel-h"><h2>Предмет</h2><button class="x" data-close aria-label="Закрыть">✕</button></div><div class="panel-b">${itemCard(id)}</div></div>`;
+  document.body.appendChild(wrap);
+  const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  wrap.addEventListener('click', e => { if (e.target === wrap || e.target.closest('[data-close]')) close(); });
+}
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-item]');
+  if (!el || el.closest('.item-sheet')) return;
+  e.preventDefault(); e.stopPropagation();
+  openItem(el.dataset.item);
+}, true);
 
 /* ---------- data & live update ---------- */
 function ago(iso){
@@ -1244,9 +1290,8 @@ function setData(d){
   HM = Object.fromEntries(d.heroes.map(h => [h.id, h]));
   if (!H(S.me)) S.me = d.heroes[0].id;
   if (!H(S.en) || S.en === S.me) S.en = d.heroes.find(h => h.id !== S.me).id;
-  $('#live').innerHTML = `<i></i><span class="lbl">${esc(d.patch)} · автообновление</span>`;
+  $('#live').innerHTML = `<i></i><span class="lbl">${esc(d.patch)}</span>`;
   $('#live').title = `Версия данных ${d.version}. Страница проверяет обновления каждые 5 минут.`;
-  $('#foot-src').innerHTML = `Данные: <a href="${esc(d.source.url)}" target="_blank" rel="noopener">${esc(d.source.name)}</a> (неофициальный API, статистика Moonton Academy)`;
 }
 function toast(msg){ const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 4000); }
 async function getJSON(u){ const r = await fetch(u + '?t=' + Date.now(), { cache:'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
