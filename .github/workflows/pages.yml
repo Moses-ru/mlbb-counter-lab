@@ -1,0 +1,83 @@
+name: Обновление и публикация сайта
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # каждый день в 04:00 UTC (07:00 по Москве)
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Кэш сборщика
+        if: github.event_name != 'push'
+        uses: actions/cache@v4
+        with:
+          path: mlbb/tools/.cache
+          key: collector-${{ github.run_id }}
+          restore-keys: collector-
+
+      - name: Собрать свежую статистику
+        if: github.event_name != 'push'
+        working-directory: mlbb
+        run: node tools/update.mjs
+
+      - name: Проверить данные
+        if: github.event_name != 'push'
+        working-directory: mlbb
+        run: |
+          node -e "
+            const d = require('./data.json');
+            if (!d.heroes || d.heroes.length < 100) { console.error('Слишком мало героев: ' + (d.heroes || []).length); process.exit(1); }
+            console.log(d.patch, d.heroes.length, 'героев');
+          "
+
+      - name: Сохранить данные в репозиторий
+        if: github.event_name != 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mlbb/data.json mlbb/img.json
+          if git diff --cached --quiet; then
+            echo "Данные не изменились"
+          else
+            git commit -m "Статистика $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - name: Собрать сайт
+        run: node mlbb/tools/build.mjs
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
